@@ -2,6 +2,8 @@
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 
 #pragma once
+
+#include "NavigationViewItemPresenterTemplateSettings.h"
 #include "NavigationViewItemPresenter.g.h"
 #include "NavigationViewHelper.h"
 #include "NavigationViewItemPresenter.properties.h"
@@ -31,6 +33,8 @@ public:
 
     void UpdateClosedCompactVisualState(bool isTopLevelItem, bool isClosedCompact);
 
+    void LoadChevron();
+
 private:
     NavigationViewItem * GetNavigationViewItem();
     void UpdateMargin();
@@ -39,6 +43,7 @@ private:
 
     NavigationViewItemHelper<NavigationViewItemPresenter> m_helper{ this };
     tracker_ref<winrt::Grid> m_contentGrid{ this };
+    tracker_ref<winrt::ContentPresenter> m_infoBadgePresenter{ this };
     tracker_ref<winrt::Grid> m_expandCollapseChevron{ this };
 
     winrt::event_token m_expandCollapseChevronTappedToken{};

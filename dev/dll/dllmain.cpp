@@ -3,9 +3,12 @@
 
 #include "pch.h"
 #include "common.h"
-#include "TraceLogging.h"
 #include "version.h"
 #include <winstring.h>
+
+#ifndef MUX_EXPERIMENTAL
+#include "TraceLogging.h"
+#endif
 
 HINSTANCE g_hInstance = nullptr;
 
@@ -20,12 +23,16 @@ STDAPI_(BOOL) DllMain(_In_ HINSTANCE hInstance, _In_ DWORD reason, _In_opt_ void
     {
         g_hInstance = hInstance;
         DisableThreadLibraryCalls(hInstance);
+#ifndef MUX_EXPERIMENTAL
         RegisterTraceLogging();
+#endif
     }
     else if (DLL_PROCESS_DETACH == reason)
     {
+#ifndef MUX_EXPERIMENTAL
         SendTelemetryOnSuspend();
         UnRegisterTraceLogging();
+#endif
     }
 
     return TRUE;
@@ -40,7 +47,8 @@ HRESULT WINAPI DllGetActivationFactory(_In_ HSTRING activatableClassId, _Out_ ::
     uint32_t length{};
     wchar_t const* const buffer = WindowsGetStringRawBuffer(activatableClassId, &length);
     std::wstring_view const name{ buffer, length };
-    if (name == L"Microsoft.UI.Private.Controls.FrameworkPackageDetector"sv)
+    if (name == L"Microsoft.UI.Private.Controls.FrameworkPackageDetector"sv ||
+        name == L"Microsoft.UI.Private.Controls.CBSPackageDetector"sv)
     {
         winrt::hstring resources{L"Microsoft.UI.Xaml.Controls.XamlControlsResources"sv};
         // It doesn't matter *what* we return so return a type that everyone uses.

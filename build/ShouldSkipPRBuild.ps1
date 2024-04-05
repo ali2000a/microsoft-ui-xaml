@@ -11,8 +11,16 @@ function AllChangedFilesAreSkippable
     foreach($file in $files)
     {
         Write-Host "Checking '$file'"
-        $ext = [System.IO.Path]::GetExtension($file)
-        $fileIsSkippable = $ext -in $skipExts
+        try
+        {
+            $ext = [System.IO.Path]::GetExtension($file)
+            $fileIsSkippable = $ext -in $skipExts
+        }
+        catch
+        {
+            $fileIsSkippable = $false
+        }
+
         Write-Host "File '$file' is skippable: '$fileIsSkippable'"
 
         if(!$fileIsSkippable)
@@ -28,7 +36,19 @@ $shouldSkipBuild = $false
 
 if($env:BUILD_REASON -eq "PullRequest")
 {
-    $targetBranch = "origin/$env:SYSTEM_PULLREQUEST_TARGETBRANCH"
+    # Azure DevOps sets this variable with refs/heads/ at the beginning.
+    # This trims it so the $gitCommandLine is formatted properly
+    if ($env:SYSTEM_PULLREQUEST_TARGETBRANCH.StartsWith("refs/heads/"))
+    {
+        $systemPullRequestTargetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH.Substring("11")
+        
+    }
+    else 
+    {
+        $systemPullRequestTargetBranch = $env:SYSTEM_PULLREQUEST_TARGETBRANCH
+    }
+
+    $targetBranch = "origin/$systemPullRequestTargetBranch"
 
     $gitCommandLine = "git diff $targetBranch --name-only"
     Write-Host "$gitCommandLine"

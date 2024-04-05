@@ -8,14 +8,14 @@
 #include "SharedHelpers.h"
 
 static constexpr auto c_contentGrid = L"PresenterContentRootGrid"sv;
+static constexpr auto c_infoBadgePresenter = L"InfoBadgePresenter"sv;
 static constexpr auto c_expandCollapseChevron = L"ExpandCollapseChevron"sv;
 static constexpr auto c_expandCollapseRotateExpandedStoryboard = L"ExpandCollapseRotateExpandedStoryboard"sv;
 static constexpr auto c_expandCollapseRotateCollapsedStoryboard = L"ExpandCollapseRotateCollapsedStoryboard"sv;
 
-static constexpr auto c_iconBoxColumnDefinitionName = L"IconColumn"sv;
-
 NavigationViewItemPresenter::NavigationViewItemPresenter()
 {
+    SetValue(s_TemplateSettingsProperty, winrt::make<::NavigationViewItemPresenterTemplateSettings>());
     SetDefaultStyleKey(this);
 }
 
@@ -31,18 +31,18 @@ void NavigationViewItemPresenter::OnApplyTemplate()
         m_contentGrid.set(contentGrid);
     }
 
+    m_infoBadgePresenter.set(GetTemplateChildT<winrt::ContentPresenter>(c_infoBadgePresenter, controlProtected));
+
     if (auto navigationViewItem = GetNavigationViewItem())
     {
-        if (auto const expandCollapseChevron = GetTemplateChildT<winrt::Grid>(c_expandCollapseChevron, *this))
+        if (navigationViewItem->HasPotentialChildren())
         {
-            m_expandCollapseChevron.set(expandCollapseChevron);
-            m_expandCollapseChevronTappedToken = expandCollapseChevron.Tapped({ navigationViewItem, &NavigationViewItem::OnExpandCollapseChevronTapped });
+            LoadChevron();
         }
         navigationViewItem->UpdateVisualStateNoTransition();
 
-
         // We probably switched displaymode, so restore width now, otherwise the next time we will restore is when the CompactPaneLength changes
-        if(const auto& navigationView = navigationViewItem->GetNavigationView())
+        if (const auto& navigationView = navigationViewItem->GetNavigationView())
         {
             if (navigationView.PaneDisplayMode() != winrt::NavigationViewPaneDisplayMode::Top)
             {
@@ -55,6 +55,21 @@ void NavigationViewItemPresenter::OnApplyTemplate()
     m_chevronCollapsedStoryboard.set(GetTemplateChildT<winrt::Storyboard>(c_expandCollapseRotateCollapsedStoryboard, *this));
 
     UpdateMargin();
+}
+
+void NavigationViewItemPresenter::LoadChevron()
+{
+    if (!m_expandCollapseChevron)
+    {
+        if (auto navigationViewItem = GetNavigationViewItem())
+        {
+            if (auto const expandCollapseChevron = GetTemplateChildT<winrt::Grid>(c_expandCollapseChevron, *this))
+            {
+                m_expandCollapseChevron.set(expandCollapseChevron);
+                m_expandCollapseChevronTappedToken = expandCollapseChevron.Tapped({ navigationViewItem, &NavigationViewItem::OnExpandCollapseChevronTapped });
+            }
+        }
+    }
 }
 
 void NavigationViewItemPresenter::RotateExpandCollapseChevron(bool isExpanded)
@@ -91,6 +106,10 @@ bool NavigationViewItemPresenter::GoToElementStateCore(winrt::hstring const& sta
     if (state == c_OnLeftNavigation || state == c_OnLeftNavigationReveal || state == c_OnTopNavigationPrimary
         || state == c_OnTopNavigationPrimaryReveal || state == c_OnTopNavigationOverflow)
     {
+        if (auto const infoBadgePresenter = m_infoBadgePresenter.get())
+        {
+            infoBadgePresenter.Content(nullptr);
+        }
         return __super::GoToElementStateCore(state, useTransitions);
     }
     return winrt::VisualStateManager::GoToState(*this, state, useTransitions);
@@ -127,14 +146,14 @@ void NavigationViewItemPresenter::UpdateMargin()
 void NavigationViewItemPresenter::UpdateCompactPaneLength(double compactPaneLength, bool shouldUpdate)
 {
     m_compactPaneLengthValue = compactPaneLength;
+
     if (shouldUpdate)
     {
-        if (auto iconGridColumn = GetTemplateChildT<winrt::ColumnDefinition>(c_iconBoxColumnDefinitionName, *this))
-        {
-            auto gridLength = iconGridColumn.Width();
-            gridLength.Value = compactPaneLength;
-            iconGridColumn.Width(gridLength);
-        }
+        const auto templateSettings = winrt::get_self<NavigationViewItemPresenterTemplateSettings>(TemplateSettings());
+        const auto gridLength = compactPaneLength;
+
+        templateSettings->IconWidth(gridLength);
+        templateSettings->SmallerIconWidth(std::max(0.0, gridLength - 8));
     }
 }
 

@@ -19,6 +19,7 @@ namespace MUXControlsTestApp
         {
             this.InitializeComponent();
             NavigationViewPage.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewPage), 0); };
+            NavigationViewInfoBadgePage.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewInfoBadgeTestPage), 0); };
             NavigationViewCompactPaneLengthTestPage.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewCompactPaneLengthTestPage), 0); };
             NavigationViewRS4Page.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewRS4Page), 0); };
             NavigationViewPageDataContext.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewPageDataContext), 0); };
@@ -39,6 +40,8 @@ namespace MUXControlsTestApp
             NavigationViewMenuItemStretchPageButton.Click += delegate { Frame.NavigateWithoutAnimation(typeof(NavigationViewMenuItemStretchPage), 0); };
             NavigateToHierarchicalNavigationViewMarkupPage.Click += delegate { Frame.NavigateWithoutAnimation(typeof(HierarchicalNavigationViewMarkup), 0); };
             NavigateToHierarchicalNavigationViewDataBindingPage.Click += delegate { Frame.NavigateWithoutAnimation(typeof(HierarchicalNavigationViewDataBinding), 0); };
+            PaneLayoutTestPageButton.Click += delegate { Frame.NavigateWithoutAnimation(typeof(PaneLayoutTestPage), 0); };
+            PaneFooterTestPageButton.Click += delegate { Frame.NavigateWithoutAnimation(typeof(PaneFooterTestPage), 0); };
         }
     }
 }
