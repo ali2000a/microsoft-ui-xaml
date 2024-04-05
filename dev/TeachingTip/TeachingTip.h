@@ -7,6 +7,7 @@
 #include "common.h"
 
 #include "TeachingTipTemplateSettings.h"
+#include "TeachingTipTemplatePartHelpers.h"
 
 #include "TeachingTip.g.h"
 #include "TeachingTip.properties.h"
@@ -20,7 +21,28 @@ public:
     TeachingTip();
 
     // IFrameworkElement
+#pragma region ApplyTemplate
+public:
     void OnApplyTemplate();
+private:
+    void RevokeAllRevokers();
+    void EstablishTemplateParts();
+#pragma region EstablishTemplateSubParts
+    void EstablishRootParts();
+    void DetachRootElementFromContainer(const winrt::Border& container);
+    void EstablishContentRootGrid();
+    void EstablishTailOcculsionGrid();
+    void EstablishHeroContentBorder();
+    void EstablishActionButton();
+    void EstablishAlternateCloseButton();
+    void EstablishCloseButton();
+    void EstablishTailEdgeBorder();
+    void EstablishTailPolygon();
+#pragma endregion
+    void SetupInitialState();
+#pragma endregion
+
+public:
     void OnPropertyChanged(const winrt::DependencyPropertyChangedEventArgs& args);
 
     // ContentControl
@@ -62,9 +84,6 @@ private:
     PropertyChanged_revoker m_automationNameChangedRevoker{};
     PropertyChanged_revoker m_automationIdChangedRevoker{};
     winrt::CoreDispatcher::AcceleratorKeyActivated_revoker m_acceleratorKeyActivatedRevoker{};
-    winrt::UIElement::PreviewKeyDown_revoker m_previewKeyDownForF6Revoker{};
-    // This handler is not required for Winui3 because the framework bug this works around has been fixed.
-    winrt::UIElement::PreviewKeyDown_revoker m_popupPreviewKeyDownForF6Revoker{};
     winrt::Button::Click_revoker m_closeButtonClickedRevoker{};
     winrt::Button::Click_revoker m_alternateCloseButtonClickedRevoker{};
     winrt::Button::Click_revoker m_actionButtonClickedRevoker{};
@@ -78,7 +97,7 @@ private:
     winrt::Popup::Closed_revoker m_lightDismissIndicatorPopupClosedRevoker{};
     winrt::CoreWindow::SizeChanged_revoker m_windowSizeChangedRevoker{};
     winrt::Grid::Loaded_revoker m_tailOcclusionGridLoadedRevoker{};
-    XamlRootChanged_revoker m_xamlRootChangedRevoker{};
+    winrt::XamlRoot::Changed_revoker m_xamlRootChangedRevoker{};
     // Hold a strong ref to the xamlRoot while we're open so that the changed revoker works.
     // This can be removed when internal bug #21302432 is fixed.
     tracker_ref<winrt::XamlRoot> m_xamlRoot{ this };
@@ -117,10 +136,7 @@ private:
     void OnAutomationIdChanged(const winrt::IInspectable&, const winrt::IInspectable&);
 
     void OnContentSizeChanged(const winrt::IInspectable&, const winrt::SizeChangedEventArgs& args);
-    void OnF6PreviewKeyDownClicked(const winrt::IInspectable&, const winrt::KeyRoutedEventArgs& args);
-    void OnF6PopupPreviewKeyDownClicked(const winrt::IInspectable&, const winrt::KeyRoutedEventArgs& args);
     void OnF6AcceleratorKeyClicked(const winrt::CoreDispatcher&, const winrt::AcceleratorKeyEventArgs& args);
-    bool HandleF6Clicked(bool fromPopup = false);
     void OnCloseButtonClicked(const winrt::IInspectable&, const winrt::RoutedEventArgs&);
     void OnActionButtonClicked(const winrt::IInspectable&, const winrt::RoutedEventArgs&);
     void OnPopupOpened(const winrt::IInspectable&, const winrt::IInspectable&);
@@ -161,8 +177,11 @@ private:
     static std::array<winrt::TeachingTipPlacementMode, 13> GetPlacementFallbackOrder(winrt::TeachingTipPlacementMode preferredPalcement);
     void EstablishShadows();
     void TrySetCenterPoint(const winrt::IUIElement9& element, const winrt::float3& centerPoint);
-    bool ToggleVisibilityForEmptyContent(const wstring_view visibleStateName, const wstring_view collapsedStateName, const winrt::hstring& content);
-    void UpdateButtonAutomationProperties(const winrt::Button button, const winrt::IInspectable content);
+    bool ToggleTitleVisibilityForEmptyContent();
+    bool ToggleSubtitleVisibilityForEmptyContent();
+
+    template <typename VisualStateGroupEnum>
+    bool ToggleVisibilityForEmptyContent(const VisualStateGroupEnum visibleState, const VisualStateGroupEnum collapsedState, const winrt::hstring& content);
 
     // The tail is designed as an 8x16 pixel shape, however it is actually a 10x20 shape which is partially occluded by the tip content.
     // This is done to get the border of the tip to follow the tail shape without drawing the border on the tip edge of the tail.
@@ -175,6 +194,19 @@ private:
     winrt::CornerRadius GetTeachingTipCornerRadius();
     float TopLeftCornerRadius() { return static_cast<float>(GetTeachingTipCornerRadius().TopLeft); }
     float TopRightCornerRadius() { return static_cast<float>(GetTeachingTipCornerRadius().TopRight); }
+
+
+    template<typename WinRTReturn>
+    WinRTReturn GetTemplatePart(tracker_ref<WinRTReturn>& tracker, TeachingTipNamedTemplatePart namedTemplatePart)
+    {
+        return TeachingTipTemplateHelpers::GetTemplatePart(tracker, namedTemplatePart, *this);
+    }
+
+    template<typename TeachingTipVisualStateGroup>
+    bool GoToState(TeachingTipVisualStateGroup state, bool useTransitions = true)
+    {
+        return TeachingTipTemplateHelpers::GoToState(*this, state, useTransitions = true);
+    }
 
     tracker_ref<winrt::Border> m_container{ this };
 
@@ -213,7 +245,6 @@ private:
 
     winrt::Size m_currentXamlRootSize{ 0,0 };
 
-    bool m_ignoreNextIsOpenChanged{ false };
     bool m_isTemplateApplied{ false };
     bool m_createNewPopupOnOpen{ false };
 
@@ -283,28 +314,7 @@ private:
     static constexpr wstring_view s_scaleTargetName{ L"Scale"sv };
     static constexpr wstring_view s_translationTargetName{ L"Translation"sv };
 
-    static constexpr wstring_view s_containerName{ L"Container"sv };
-    static constexpr wstring_view s_popupName{ L"Popup"sv };
-    static constexpr wstring_view s_tailOcclusionGridName{ L"TailOcclusionGrid"sv };
-    static constexpr wstring_view s_contentRootGridName{ L"ContentRootGrid"sv };
-    static constexpr wstring_view s_nonHeroContentRootGridName{ L"NonHeroContentRootGrid"sv };
-    static constexpr wstring_view s_shadowTargetName{ L"ShadowTarget"sv };
-    static constexpr wstring_view s_heroContentBorderName{ L"HeroContentBorder"sv };
-    static constexpr wstring_view s_titlesStackPanelName{ L"TitlesStackPanel"sv };
-    static constexpr wstring_view s_titleTextBoxName{ L"TitleTextBlock"sv };
-    static constexpr wstring_view s_subtitleTextBoxName{ L"SubtitleTextBlock"sv };
-    static constexpr wstring_view s_alternateCloseButtonName{ L"AlternateCloseButton"sv };
-    static constexpr wstring_view s_mainContentPresenterName{ L"MainContentPresenter"sv };
-    static constexpr wstring_view s_actionButtonName{ L"ActionButton"sv };
-    static constexpr wstring_view s_closeButtonName{ L"CloseButton"sv };
-    static constexpr wstring_view s_tailPolygonName{ L"TailPolygon"sv };
     static constexpr wstring_view s_tailEdgeBorderName{ L"TailEdgeBorder"sv };
-    static constexpr wstring_view s_topTailPolygonHighlightName{ L"TopTailPolygonHighlight"sv };
-    static constexpr wstring_view s_topHighlightLeftName{ L"TopHighlightLeft"sv };
-    static constexpr wstring_view s_topHighlightRightName{ L"TopHighlightRight"sv };
-
-    static constexpr wstring_view s_accentButtonStyleName{ L"AccentButtonStyle" };
-    static constexpr wstring_view s_teachingTipTopHighlightBrushName{ L"TeachingTipTopHighlightBrush" };
 
     static constexpr winrt::float2 s_expandAnimationEasingCurveControlPoint1{ 0.1f, 0.9f };
     static constexpr winrt::float2 s_expandAnimationEasingCurveControlPoint2{ 0.2f, 1.0f };
